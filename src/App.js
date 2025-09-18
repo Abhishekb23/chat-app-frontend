@@ -23,6 +23,9 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
 
+  // Detect screen size
+  const isMobile = window.innerWidth < 768;
+
   // ============= AUTH FUNCTIONS =============
   const register = async () => {
     if (!username || !password) return alert("Enter username and password");
@@ -72,79 +75,74 @@ function App() {
 
   // ============= CHAT FUNCTIONS =============
   const selectChatUser = async (chatUser) => {
-  setSelectedUser(chatUser);
-  setMessages([]);
-  try {
-    const res = await axios.get(`${API_URL}/api/messages/conversation/${chatUser.id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    if (res.data.length > 0) {
-      setMessages(res.data);
-    } else {
-      setMessages([]);
-    }
-  } catch (err) {
-    alert("Error loading conversation");
-  }
-};
-
-
-const sendMessage = async () => {
-  if (!newMessage.trim()) return;
-  try {
-    const res = await axios.post(
-      `${API_URL}/api/messages/send`,
-      { receiver_id: selectedUser.id, message: newMessage },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-
-    // Append the sent message instantly
-    setMessages((prevMessages) => [...prevMessages, res.data.data]);
-    setNewMessage("");
-  } catch (err) {
-    alert("Error sending message");
-  }
-};
-
-
-const fetchNewMessages = async () => {
-  if (!selectedUser || messages.length === 0) return;
-
-  const lastMessageId = messages[messages.length - 1]?.id;
-
-  try {
-    const res = await axios.get(
-      `${API_URL}/api/messages/conversation/${selectedUser.id}?after=${lastMessageId}`,
-      {
+    setSelectedUser(chatUser);
+    setMessages([]);
+    try {
+      const res = await axios.get(`${API_URL}/api/messages/conversation/${chatUser.id}`, {
         headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-
-    if (res.data.length > 0) {
-      setMessages((prevMessages) => {
-        // Filter out duplicates using message ID
-        const newUniqueMessages = res.data.filter(
-          (msg) => !prevMessages.some((m) => m.id === msg.id)
-        );
-        return [...prevMessages, ...newUniqueMessages];
       });
+
+      if (res.data.length > 0) {
+        setMessages(res.data);
+      } else {
+        setMessages([]);
+      }
+    } catch (err) {
+      alert("Error loading conversation");
     }
-  } catch (err) {
-    console.error("Error fetching new messages", err);
-  }
-};
+  };
 
-  // Auto refresh conversation every 3s
-useEffect(() => {
-  if (!selectedUser) return;
+  const sendMessage = async () => {
+    if (!newMessage.trim()) return;
+    try {
+      const res = await axios.post(
+        `${API_URL}/api/messages/send`,
+        { receiver_id: selectedUser.id, message: newMessage },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-  const interval = setInterval(() => {
-    fetchNewMessages();
-  }, 3000);
+      setMessages((prevMessages) => [...prevMessages, res.data.data]);
+      setNewMessage("");
+    } catch (err) {
+      alert("Error sending message");
+    }
+  };
 
-  return () => clearInterval(interval);
-}, [selectedUser, messages]);
+  const fetchNewMessages = async () => {
+    if (!selectedUser || messages.length === 0) return;
+
+    const lastMessageId = messages[messages.length - 1]?.id;
+
+    try {
+      const res = await axios.get(
+        `${API_URL}/api/messages/conversation/${selectedUser.id}?after=${lastMessageId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (res.data.length > 0) {
+        setMessages((prevMessages) => {
+          const newUniqueMessages = res.data.filter(
+            (msg) => !prevMessages.some((m) => m.id === msg.id)
+          );
+          return [...prevMessages, ...newUniqueMessages];
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching new messages", err);
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedUser) return;
+
+    const interval = setInterval(() => {
+      fetchNewMessages();
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [selectedUser, messages]);
 
   // ============= UI =============
   if (view === "login" || view === "register") {
@@ -194,77 +192,86 @@ useEffect(() => {
   return (
     <div style={styles.chatContainer}>
       {/* Sidebar */}
-      <div style={styles.sidebar}>
-        <div style={styles.sidebarHeader}>
-          <h3 style={{ color: "#fff" }}>Hi, {user?.username}</h3>
-          <button style={styles.logoutButton} onClick={logout}>Logout</button>
-        </div>
+      {(!isMobile || !selectedUser) && (
+        <div style={styles.sidebar}>
+          <div style={styles.sidebarHeader}>
+            <h3 style={{ color: "#fff" }}>Hi, {user?.username}</h3>
+            <button style={styles.logoutButton} onClick={logout}>Logout</button>
+          </div>
 
-        <div style={{ marginTop: "20px" }}>
-          <input
-            style={styles.searchInput}
-            placeholder="Search users..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          <button style={styles.searchButton} onClick={searchUsers}>Search</button>
-        </div>
+          <div style={{ marginTop: "20px" }}>
+            <input
+              style={styles.searchInput}
+              placeholder="Search users..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <button style={styles.searchButton} onClick={searchUsers}>Search</button>
+          </div>
 
-        <div style={styles.searchResults}>
-          <h4 style={{ color: "#fff" }}>Results</h4>
-          {searchResults.map((u) => (
-            <div
-              key={u.id}
-              style={{
-                ...styles.userItem,
-                background: selectedUser?.id === u.id ? "#0078d7" : "#2a2f38",
-              }}
-              onClick={() => selectChatUser(u)}
-            >
-              {u.username}
-            </div>
-          ))}
+          <div style={styles.searchResults}>
+            <h4 style={{ color: "#fff" }}>Results</h4>
+            {searchResults.map((u) => (
+              <div
+                key={u.id}
+                style={{
+                  ...styles.userItem,
+                  background: selectedUser?.id === u.id ? "#0078d7" : "#2a2f38",
+                }}
+                onClick={() => selectChatUser(u)}
+              >
+                {u.username}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Chat window */}
-      <div style={styles.chatWindow}>
-        {selectedUser ? (
-          <>
-            <div style={styles.chatHeader}>
-              <h3 style={{ margin: 0 }}>Chat with {selectedUser.username}</h3>
-            </div>
-            <div style={styles.messages}>
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  style={{
-                    ...styles.message,
-                    alignSelf: msg.sender_id === user.id ? "flex-end" : "flex-start",
-                    background: msg.sender_id === user.id ? "#0078d7" : "#333",
-                  }}
-                >
-                  <span style={{ fontSize: "14px" }}>{msg.message}</span>
-                </div>
-              ))}
-            </div>
+      {(!isMobile || selectedUser) && (
+        <div style={styles.chatWindow}>
+          {selectedUser ? (
+            <>
+              <div style={styles.chatHeader}>
+                {isMobile && (
+                  <button onClick={() => setSelectedUser(null)} style={styles.backButton}>
+                    ← Back
+                  </button>
+                )}
+                <h3 style={{ margin: 0 }}>Chat with {selectedUser.username}</h3>
+              </div>
+              <div style={styles.messages}>
+                {messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    style={{
+                      ...styles.message,
+                      alignSelf: msg.sender_id === user.id ? "flex-end" : "flex-start",
+                      background: msg.sender_id === user.id ? "#0078d7" : "#333",
+                    }}
+                  >
+                    <span style={{ fontSize: "14px" }}>{msg.message}</span>
+                  </div>
+                ))}
+              </div>
 
-            <div style={styles.messageInput}>
-              <input
-                style={styles.textInput}
-                placeholder="Type a message..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-              />
-              <button style={styles.sendButton} onClick={sendMessage}>Send</button>
+              <div style={styles.messageInput}>
+                <input
+                  style={styles.textInput}
+                  placeholder="Type a message..."
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                />
+                <button style={styles.sendButton} onClick={sendMessage}>Send</button>
+              </div>
+            </>
+          ) : (
+            <div style={styles.emptyState}>
+              <h3>Select a user to start chatting</h3>
             </div>
-          </>
-        ) : (
-          <div style={styles.emptyState}>
-            <h3>Select a user to start chatting</h3>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -287,10 +294,7 @@ const styles = {
     boxShadow: "0px 0px 15px rgba(0,0,0,0.6)",
     textAlign: "center",
   },
-  title: {
-    color: "#fff",
-    marginBottom: "20px",
-  },
+  title: { color: "#fff", marginBottom: "20px" },
   input: {
     padding: "12px",
     margin: "8px 0",
@@ -313,14 +317,8 @@ const styles = {
     marginTop: "10px",
     transition: "0.3s",
   },
-  switchText: {
-    color: "#ccc",
-    marginTop: "15px",
-  },
-  link: {
-    color: "#0078d7",
-    cursor: "pointer",
-  },
+  switchText: { color: "#ccc", marginTop: "15px" },
+  link: { color: "#0078d7", cursor: "pointer" },
 
   // Chat Layout
   chatContainer: {
@@ -369,11 +367,7 @@ const styles = {
     color: "#fff",
     cursor: "pointer",
   },
-  searchResults: {
-    marginTop: "20px",
-    overflowY: "auto",
-    flex: 1,
-  },
+  searchResults: { marginTop: "20px", overflowY: "auto", flex: 1 },
   userItem: {
     padding: "12px",
     margin: "6px 0",
@@ -383,15 +377,21 @@ const styles = {
     color: "#fff",
   },
 
-  chatWindow: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-  },
+  chatWindow: { flex: 1, display: "flex", flexDirection: "column" },
   chatHeader: {
     padding: "15px",
     borderBottom: "1px solid #333",
     background: "#2a2f38",
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+  },
+  backButton: {
+    background: "transparent",
+    border: "none",
+    color: "#fff",
+    fontSize: "16px",
+    cursor: "pointer",
   },
   messages: {
     flex: 1,
@@ -402,7 +402,7 @@ const styles = {
     gap: "10px",
   },
   message: {
-    maxWidth: "60%",
+    maxWidth: "70%",
     padding: "10px 15px",
     borderRadius: "10px",
     color: "#fff",
@@ -411,9 +411,11 @@ const styles = {
   },
   messageInput: {
     display: "flex",
-    padding: "15px",
+    padding: "12px",
     borderTop: "1px solid #333",
     background: "#2a2f38",
+    position: "sticky",
+    bottom: 0,
   },
   textInput: {
     flex: 1,
@@ -432,7 +434,6 @@ const styles = {
     borderRadius: "8px",
     color: "#fff",
     cursor: "pointer",
-    transition: "0.3s",
   },
   emptyState: {
     flex: 1,
