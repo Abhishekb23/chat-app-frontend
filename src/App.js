@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import styles from './styles'; // Adjust path if needed
 
-const API_URL = "http://localhost:5000"; // backend API
+const API_URL = "https://chat-app-backend-tjcb.onrender.com"; // backend API
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem("token") || "");
