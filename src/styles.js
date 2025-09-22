@@ -126,14 +126,16 @@ const baseStyles = {
     fontSize: "16px",
     cursor: "pointer",
   },
-  messages: {
-    flex: 1,
-    padding: "20px",
-    overflowY: "auto",
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
-  },
+messages: {
+  flex: 1,
+  padding: "20px",
+  overflowY: "auto",
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "flex-end", // 👈 Push messages to bottom
+  gap: "10px",
+},
+
   message: {
     maxWidth: "70%",
     padding: "10px 15px",

@@ -1,7 +1,7 @@
 // src/App.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
-import styles from './styles'; // Adjust path if needed
+import styles from "./styles"; // Adjust path if needed
 
 const API_URL = "https://chat-app-backend-tjcb.onrender.com"; // backend API
 
@@ -10,7 +10,6 @@ function App() {
   const [user, setUser] = useState(
     JSON.parse(localStorage.getItem("user")) || null
   );
-
   const [view, setView] = useState(token ? "chat" : "login");
 
   // Auth
@@ -27,20 +26,22 @@ function App() {
   const [newMessage, setNewMessage] = useState("");
 
   // Groups
-  const [tab, setTab] = useState("users"); // "users" | "groups"
+  const [tab, setTab] = useState("users");
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
-  const [groupMembers, setGroupMembers] = useState([]); // current members
+  const [groupMembers, setGroupMembers] = useState([]);
   const [showAddMembers, setShowAddMembers] = useState(false);
 
   const [newGroupName, setNewGroupName] = useState("");
   const [selectedMembers, setSelectedMembers] = useState([]);
 
-  // Add members search
   const [memberSearchQuery, setMemberSearchQuery] = useState("");
   const [memberSearchResults, setMemberSearchResults] = useState([]);
 
   const isMobile = window.innerWidth < 768;
+
+  // For auto-scroll
+  const messagesEndRef = useRef(null);
 
   // ================= AUTH =================
   const register = async () => {
@@ -54,37 +55,38 @@ function App() {
     }
   };
 
- const login = async () => {
-  if (!username || !password) return alert("Enter username and password");
-  try {
-    const res = await axios.post(`${API_URL}/api/auth/login`, {
-      username,
-      password,
-    });
+  const login = async () => {
+    if (!username || !password) return alert("Enter username and password");
+    try {
+      const res = await axios.post(`${API_URL}/api/auth/login`, {
+        username,
+        password,
+      });
 
-    const receivedToken = res.data.token;
-    const receivedUser = res.data.user;
+      const receivedToken = res.data.token;
+      const receivedUser = res.data.user;
 
-    setToken(receivedToken);
-    setUser(receivedUser);
-    localStorage.setItem("token", receivedToken);
-    localStorage.setItem("user", JSON.stringify(receivedUser));
-    setView("chat");
+      setToken(receivedToken);
+      setUser(receivedUser);
+      localStorage.setItem("token", receivedToken);
+      localStorage.setItem("user", JSON.stringify(receivedUser));
+      setView("chat");
 
-    // Use the token directly here to ensure it's used in API calls
-    await axios.get(`${API_URL}/api/groups`, {
-      headers: { Authorization: `Bearer ${receivedToken}` },
-    }).then((res) => setGroups(res.data));
+      await axios
+        .get(`${API_URL}/api/groups`, {
+          headers: { Authorization: `Bearer ${receivedToken}` },
+        })
+        .then((res) => setGroups(res.data));
 
-    await axios.get(`${API_URL}/api/auth/search?query=`, {
-      headers: { Authorization: `Bearer ${receivedToken}` },
-    }).then((res) => setSearchResults(res.data));
-
-  } catch (err) {
-    alert(err.response?.data?.message || "Login failed");
-  }
-};
-
+      await axios
+        .get(`${API_URL}/api/auth/search?query=`, {
+          headers: { Authorization: `Bearer ${receivedToken}` },
+        })
+        .then((res) => setSearchResults(res.data));
+    } catch (err) {
+      alert(err.response?.data?.message || "Login failed");
+    }
+  };
 
   const logout = () => {
     setToken("");
@@ -125,17 +127,7 @@ function App() {
     setSelectedGroup(null);
     setSelectedUser(chatUser);
     setMessages([]);
-    try {
-      const res = await axios.get(
-        `${API_URL}/api/messages/conversation/${chatUser.id}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      setMessages(res.data);
-    } catch {
-      alert("Error loading conversation");
-    }
+    fetchMessages(chatUser.id, null); // fetch 1:1 chat messages
   };
 
   // ================= GROUPS =================
@@ -172,22 +164,7 @@ function App() {
     setSelectedUser(null);
     setSelectedGroup(group);
     setMessages([]);
-    setSelectedMembers([]);
-    setShowAddMembers(false);
-    setMemberSearchQuery("");
-    setMemberSearchResults([]);
-    try {
-      const res = await axios.get(
-        `${API_URL}/api/groups/${group.id}/messages`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      setMessages(res.data.messages || res.data);
-      setGroupMembers(res.data.members || []); // backend must return members
-    } catch {
-      alert("Error loading group chat");
-    }
+    fetchMessages(null, group.id); // fetch group chat messages
   };
 
   const searchMembers = async () => {
@@ -233,6 +210,36 @@ function App() {
   };
 
   // ================= MESSAGES =================
+  const fetchMessages = async (userId, groupId) => {
+    try {
+      let res;
+      if (userId) {
+        res = await axios.get(`${API_URL}/api/messages/conversation/${userId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } else if (groupId) {
+        res = await axios.get(`${API_URL}/api/groups/${groupId}/messages`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+      setMessages(res.data.messages || res.data);
+    } catch (err) {
+      console.error("Error fetching messages:", err);
+    }
+  };
+
+  // Polling for real-time updates
+  useEffect(() => {
+    let interval;
+    if (selectedUser || selectedGroup) {
+      interval = setInterval(() => {
+        if (selectedUser) fetchMessages(selectedUser.id, null);
+        if (selectedGroup) fetchMessages(null, selectedGroup.id);
+      }, 1000); // fetch every 3 sec
+    }
+    return () => clearInterval(interval);
+  }, [selectedUser, selectedGroup]);
+
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
     try {
@@ -258,24 +265,29 @@ function App() {
   };
 
   const deleteMessage = async (msgId) => {
-  try {
-    if (selectedUser) {
-      // 1:1 chat
-      await axios.delete(`${API_URL}/api/messages/${msgId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-    } else if (selectedGroup) {
-      // group chat
-      await axios.delete(`${API_URL}/api/groups/${selectedGroup.id}/messages/${msgId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+    try {
+      if (selectedUser) {
+        await axios.delete(`${API_URL}/api/messages/${msgId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } else if (selectedGroup) {
+        await axios.delete(
+          `${API_URL}/api/groups/${selectedGroup.id}/messages/${msgId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      }
+      setMessages((prev) => prev.filter((msg) => msg.id !== msgId));
+    } catch {
+      alert("Error deleting message");
     }
+  };
 
-    setMessages((prev) => prev.filter((msg) => msg.id !== msgId));
-  } catch {
-    alert("Error deleting message");
-  }
-};
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
 
   // ================= UI =================
   if (view === "login" || view === "register") {
@@ -392,7 +404,6 @@ function App() {
             </>
           ) : (
             <>
-              {/* New Group Name */}
               <div style={{ marginTop: "20px" }}>
                 <input
                   style={styles.searchInput}
@@ -402,7 +413,6 @@ function App() {
                 />
               </div>
 
-              {/* Select Members for new group */}
               <div
                 style={{
                   marginTop: "10px",
@@ -433,7 +443,6 @@ function App() {
                 ))}
               </div>
 
-              {/* Create Group Button */}
               <button
                 style={{ ...styles.searchButton, marginTop: "10px" }}
                 onClick={createGroup}
@@ -441,7 +450,6 @@ function App() {
                 Create Group
               </button>
 
-              {/* Existing Groups List */}
               <div style={styles.searchResults}>
                 {groups.map((g) => (
                   <div
@@ -462,12 +470,12 @@ function App() {
         </div>
       )}
 
-      {/* Chat window */}
+      {/* Chat Window */}
       {(!isMobile || selectedUser || selectedGroup) && (
         <div style={styles.chatWindow}>
           {selectedUser || selectedGroup ? (
             <>
-              {/* ===== CHAT HEADER / ADD MEMBERS SEARCH ===== */}
+              {/* Header */}
               <div style={styles.chatHeader}>
                 {isMobile && (
                   <button
@@ -480,52 +488,25 @@ function App() {
                     ← Back
                   </button>
                 )}
-
-                {showAddMembers ? (
-                  <>
-                    <input
-                      style={{ ...styles.searchInput, margin: 0 }}
-                      placeholder="Search users to add..."
-                      value={memberSearchQuery}
-                      onChange={(e) => setMemberSearchQuery(e.target.value)}
-                    />
-                    <button
-                      style={{
-                        ...styles.searchButton,
-                        marginLeft: "10px",
-                        padding: "8px",
-                      }}
-                      onClick={searchMembers}
-                    >
-                      Search
-                    </button>
-                  </>
-                ) : (
-                  <h3 style={{ margin: 0 }}>
-                    {selectedUser
-                      ? `Chat with ${selectedUser.username}`
-                      : selectedGroup?.name}
-                  </h3>
-                )}
-
-                {!isMobile && !showAddMembers && selectedGroup && (
-                  <button
-                    style={styles.sendButton}
-                    onClick={() => setShowAddMembers(true)}
-                  >
-                    Add Members
-                  </button>
-                )}
+                <h3 style={{ margin: 0 }}>
+                  {selectedUser
+                    ? `Chat with ${selectedUser.username}`
+                    : selectedGroup?.name}
+                </h3>
               </div>
 
-              {/* ===== MESSAGES ===== */}
+              {/* Messages */}
               <div style={styles.messages}>
                 {messages.map((msg) => {
-                  const msgDate = new Date(msg.created_at || msg.sent_time);
-                  const time = msgDate.toLocaleTimeString([], {
+                  const date = msg.sent_date
+                    ? new Date(`${msg.sent_date} ${msg.sent_time}`)
+                    : new Date(msg.created_at);
+
+                  const time = date.toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
                   });
+
                   return (
                     <div
                       key={msg.id}
@@ -535,7 +516,6 @@ function App() {
                           msg.sender_id === user.id ? "flex-end" : "flex-start",
                         background:
                           msg.sender_id === user.id ? "#0078d7" : "#333",
-                        position: "relative",
                       }}
                     >
                       {selectedGroup && msg.sender_name && (
@@ -544,92 +524,43 @@ function App() {
                         </div>
                       )}
                       <div style={{ fontSize: "14px" }}>{msg.message}</div>
-                      <div
-                        style={{
-                          fontSize: "10px",
-                          color: "#bbb",
-                          marginTop: "4px",
-                          textAlign: "right",
-                        }}
-                      >
-                        {time}
+                      <div style={styles.messageMeta}>
+                        <small>{time}</small>
+                        {msg.sender_id === user.id && (
+                          <span
+                            style={styles.deleteIcon}
+                            onClick={() => deleteMessage(msg.id)}
+                            title="Delete message"
+                          >
+                            🗑
+                          </span>
+                        )}
                       </div>
-                      {msg.sender_id === user.id && (
-                        <button
-                          onClick={() => deleteMessage(msg.id)}
-                          style={styles.deleteButton}
-                        >
-                          ✖
-                        </button>
-                      )}
                     </div>
                   );
                 })}
+                <div ref={messagesEndRef} />
               </div>
 
-              {/* ===== ADD MEMBERS LIST ===== */}
-              {showAddMembers && selectedGroup && (
-                <div
-                  style={{
-                    padding: "10px",
-                    borderTop: "1px solid #333",
-                    background: "#2a2f38",
-                    maxHeight: "200px",
-                    overflowY: "auto",
+              {/* Message Input */}
+              <div style={styles.messageInput}>
+                <input
+                  style={styles.textInput}
+                  placeholder="Type a message..."
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      sendMessage();
+                    }
                   }}
-                >
-                  {memberSearchResults.map((u) => (
-                    <div
-                      key={u.id}
-                      style={{
-                        ...styles.userItem,
-                        background: selectedMembers.includes(u.id)
-                          ? "#0078d7"
-                          : "#2a2f38",
-                      }}
-                      onClick={() => {
-                        if (selectedMembers.includes(u.id))
-                          setSelectedMembers(
-                            selectedMembers.filter((id) => id !== u.id)
-                          );
-                        else setSelectedMembers([...selectedMembers, u.id]);
-                      }}
-                    >
-                      {u.username}
-                    </div>
-                  ))}
-                  {selectedMembers.length > 0 && (
-                    <button
-                      style={{ ...styles.sendButton, marginTop: "10px" }}
-                      onClick={addMembersToGroup}
-                    >
-                      Add Selected Members
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* ===== MESSAGE INPUT ===== */}
-              {!showAddMembers && (
-                <div style={styles.messageInput}>
-                  <input
-                    style={styles.textInput}
-                    placeholder="Type a message..."
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault(); // prevent newline
-                        sendMessage();
-                      }
-                    }}
-                    autoFocus
-                  />
-                  <button style={styles.sendButton} onClick={sendMessage}>
-                    Send
-                  </button>
-                </div>
-              )}
+                  autoFocus
+                />
+                <button style={styles.sendButton} onClick={sendMessage}>
+                  Send
+                </button>
+              </div>
             </>
           ) : (
             <div style={styles.emptyState}>
@@ -641,6 +572,5 @@ function App() {
     </div>
   );
 }
-
 
 export default App;
