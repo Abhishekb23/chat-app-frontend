@@ -156,37 +156,42 @@ function App() {
   };
 
   // ---------------- MESSAGES ----------------
-  const fetchMessages = async (userId, groupId) => {
+ const fetchMessages = React.useCallback(
+  async (userId, groupId) => {
     try {
       let res;
-
-      if (userId)
+      if (userId) {
         res = await axios.get(
           `${API_URL}/api/messages/conversation/${userId}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
-      else
+      } else if (groupId) {
         res = await axios.get(`${API_URL}/api/groups/${groupId}/messages`, {
           headers: { Authorization: `Bearer ${token}` },
         });
+      }
 
       setMessages(res.data.messages || res.data);
     } catch {}
-  };
+  },
+  [token] // dependencies safe
+);
+
 
   // POLLING
-  useEffect(() => {
-    let interval;
+useEffect(() => {
+  let interval;
 
-    if (selectedUser || selectedGroup) {
-      interval = setInterval(() => {
-        if (selectedUser) fetchMessages(selectedUser.id, null);
-        if (selectedGroup) fetchMessages(null, selectedGroup.id);
-      }, 1000);
-    }
+  if (selectedUser || selectedGroup) {
+    interval = setInterval(() => {
+      if (selectedUser) fetchMessages(selectedUser.id, null);
+      if (selectedGroup) fetchMessages(null, selectedGroup.id);
+    }, 1000);
+  }
 
-    return () => clearInterval(interval);
-  }, [selectedUser, selectedGroup, token]);
+  return () => clearInterval(interval);
+}, [selectedUser, selectedGroup, fetchMessages]);
+
 
   // SEND MESSAGE
   const sendMessage = async () => {
