@@ -1,9 +1,9 @@
 // src/App.js
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
-import styles from "./styles"; // Adjust path if needed
+import styles from "./styles";
 
-const API_URL = "https://chat-app-backend-tjcb.onrender.com"; // backend API
+const API_URL = "https://chat-app-backend-tjcb.onrender.com";
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem("token") || "");
@@ -30,25 +30,25 @@ function App() {
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [groupMembers, setGroupMembers] = useState([]);
-  const [showAddMembers, setShowAddMembers] = useState(false);
 
   const [newGroupName, setNewGroupName] = useState("");
   const [selectedMembers, setSelectedMembers] = useState([]);
-
   const [memberSearchQuery, setMemberSearchQuery] = useState("");
   const [memberSearchResults, setMemberSearchResults] = useState([]);
 
   const isMobile = window.innerWidth < 768;
 
-  // For auto-scroll
+  // scroll tracking
   const messagesEndRef = useRef(null);
+  const messagesBoxRef = useRef(null);
+  const [isUserScrolling, setIsUserScrolling] = useState(false);
 
-  // ================= AUTH =================
+  // ---------------- AUTH ----------------
   const register = async () => {
     if (!username || !password) return alert("Enter username and password");
     try {
       await axios.post(`${API_URL}/api/auth/register`, { username, password });
-      alert("Registration successful! You can now log in.");
+      alert("Registration successful!");
       setView("login");
     } catch (err) {
       alert(err.response?.data?.message || "Registration failed");
@@ -56,33 +56,33 @@ function App() {
   };
 
   const login = async () => {
-    if (!username || !password) return alert("Enter username and password");
+    if (!username || !password) return;
+
     try {
       const res = await axios.post(`${API_URL}/api/auth/login`, {
         username,
         password,
       });
 
-      const receivedToken = res.data.token;
-      const receivedUser = res.data.user;
+      const t = res.data.token;
+      const u = res.data.user;
 
-      setToken(receivedToken);
-      setUser(receivedUser);
-      localStorage.setItem("token", receivedToken);
-      localStorage.setItem("user", JSON.stringify(receivedUser));
+      setToken(t);
+      setUser(u);
+      localStorage.setItem("token", t);
+      localStorage.setItem("user", JSON.stringify(u));
+
       setView("chat");
 
-      await axios
-        .get(`${API_URL}/api/groups`, {
-          headers: { Authorization: `Bearer ${receivedToken}` },
-        })
-        .then((res) => setGroups(res.data));
+      const g = await axios.get(`${API_URL}/api/groups`, {
+        headers: { Authorization: `Bearer ${t}` },
+      });
+      setGroups(g.data);
 
-      await axios
-        .get(`${API_URL}/api/auth/search?query=`, {
-          headers: { Authorization: `Bearer ${receivedToken}` },
-        })
-        .then((res) => setSearchResults(res.data));
+      const allUsers = await axios.get(`${API_URL}/api/auth/search?query=`, {
+        headers: { Authorization: `Bearer ${t}` },
+      });
+      setSearchResults(allUsers.data);
     } catch (err) {
       alert(err.response?.data?.message || "Login failed");
     }
@@ -96,19 +96,17 @@ function App() {
     setView("login");
   };
 
-  // ================= USERS =================
+  // ---------------- USERS ----------------
   const searchUsers = async () => {
     if (!searchQuery.trim()) return;
     try {
       const res = await axios.get(
         `${API_URL}/api/auth/search?query=${searchQuery}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       setSearchResults(res.data);
-    } catch (err) {
-      alert("Error searching users");
+    } catch {
+      alert("Search error");
     }
   };
 
@@ -118,130 +116,128 @@ function App() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setSearchResults(res.data);
-    } catch (err) {
-      alert("Error fetching users");
-    }
+    } catch {}
   };
 
-  const selectChatUser = async (chatUser) => {
+  const selectChatUser = (u) => {
     setSelectedGroup(null);
-    setSelectedUser(chatUser);
+    setSelectedUser(u);
     setMessages([]);
-    fetchMessages(chatUser.id, null); // fetch 1:1 chat messages
+    fetchMessages(u.id, null);
   };
 
-  // ================= GROUPS =================
+  // ---------------- GROUPS ----------------
   const fetchGroups = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/groups`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setGroups(res.data);
-    } catch (err) {
-      console.error("Error fetching groups", err);
-    }
+    } catch {}
   };
 
   const createGroup = async () => {
     if (!newGroupName.trim() || selectedMembers.length === 0)
       return alert("Enter group name & select members");
+
     try {
       await axios.post(
         `${API_URL}/api/groups`,
         { name: newGroupName, members: selectedMembers },
         { headers: { Authorization: `Bearer ${token}` } }
       );
+
       setNewGroupName("");
       setSelectedMembers([]);
       fetchGroups();
-      alert("Group created!");
-    } catch (err) {
+    } catch {
       alert("Error creating group");
     }
   };
 
-  const selectGroup = async (group) => {
+  const selectGroup = (g) => {
     setSelectedUser(null);
-    setSelectedGroup(group);
+    setSelectedGroup(g);
     setMessages([]);
-    fetchMessages(null, group.id); // fetch group chat messages
+    fetchMessages(null, g.id);
   };
 
   const searchMembers = async () => {
     if (!memberSearchQuery.trim()) return;
+
     try {
       const res = await axios.get(
         `${API_URL}/api/auth/search?query=${memberSearchQuery}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
+
       const filtered = res.data.filter(
         (u) => !groupMembers.map((m) => m.id).includes(u.id)
       );
+
       setMemberSearchResults(filtered);
-    } catch (err) {
-      alert("Error searching users");
-    }
+    } catch {}
   };
 
   const addMembersToGroup = async () => {
     if (selectedMembers.length === 0) return;
+
     try {
       await axios.post(
         `${API_URL}/api/groups/${selectedGroup.id}/add-members`,
         { members: selectedMembers },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      alert("Members added!");
+
       setGroupMembers([
         ...groupMembers,
         ...selectedMembers.map((id) =>
           memberSearchResults.find((u) => u.id === id)
         ),
       ]);
+
       setSelectedMembers([]);
-      setShowAddMembers(false);
       setMemberSearchQuery("");
-      setMemberSearchResults([]);
     } catch {
       alert("Error adding members");
     }
   };
 
-  // ================= MESSAGES =================
+  // ---------------- MESSAGES ----------------
   const fetchMessages = async (userId, groupId) => {
     try {
       let res;
-      if (userId) {
-        res = await axios.get(`${API_URL}/api/messages/conversation/${userId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      } else if (groupId) {
+
+      if (userId)
+        res = await axios.get(
+          `${API_URL}/api/messages/conversation/${userId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      else
         res = await axios.get(`${API_URL}/api/groups/${groupId}/messages`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-      }
+
       setMessages(res.data.messages || res.data);
-    } catch (err) {
-      console.error("Error fetching messages:", err);
-    }
+    } catch {}
   };
 
-  // Polling for real-time updates
+  // POLLING
   useEffect(() => {
     let interval;
     if (selectedUser || selectedGroup) {
       interval = setInterval(() => {
         if (selectedUser) fetchMessages(selectedUser.id, null);
         if (selectedGroup) fetchMessages(null, selectedGroup.id);
-      }, 1000); // fetch every 3 sec
+      }, 1000);
     }
     return () => clearInterval(interval);
   }, [selectedUser, selectedGroup]);
 
+  // SEND MESSAGE
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
+
     try {
       if (selectedUser) {
         const res = await axios.post(
@@ -249,47 +245,57 @@ function App() {
           { receiver_id: selectedUser.id, message: newMessage },
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        setMessages((prev) => [...prev, res.data.data]);
+        setMessages((p) => [...p, res.data.data]);
       } else if (selectedGroup) {
         const res = await axios.post(
           `${API_URL}/api/groups/${selectedGroup.id}/messages`,
           { message: newMessage },
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        setMessages((prev) => [...prev, res.data]);
+        setMessages((p) => [...p, res.data]);
       }
+
       setNewMessage("");
     } catch {
-      alert("Error sending message");
+      alert("Send failed");
     }
   };
 
-  const deleteMessage = async (msgId) => {
+  // DELETE MESSAGE
+  const deleteMessage = async (id) => {
     try {
-      if (selectedUser) {
-        await axios.delete(`${API_URL}/api/messages/${msgId}`, {
+      if (selectedUser)
+        await axios.delete(`${API_URL}/api/messages/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-      } else if (selectedGroup) {
+      else
         await axios.delete(
-          `${API_URL}/api/groups/${selectedGroup.id}/messages/${msgId}`,
+          `${API_URL}/api/groups/${selectedGroup.id}/messages/${id}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
-      }
-      setMessages((prev) => prev.filter((msg) => msg.id !== msgId));
-    } catch {
-      alert("Error deleting message");
-    }
+
+      setMessages((p) => p.filter((m) => m.id !== id));
+    } catch {}
   };
 
-  // Auto-scroll to bottom when messages change
+  // ---------------- SCROLL FIX ----------------
+  const handleScroll = () => {
+    const el = messagesBoxRef.current;
+    if (!el) return;
+
+    const isAtBottom =
+      el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+
+    setIsUserScrolling(!isAtBottom);
+  };
+
   useEffect(() => {
-    if (messagesEndRef.current) {
+    if (!isUserScrolling && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
 
-  // ================= UI =================
+  // ---------------- AUTH UI ----------------
   if (view === "login" || view === "register") {
     return (
       <div style={styles.authContainer}>
@@ -297,12 +303,14 @@ function App() {
           <h2 style={styles.title}>
             {view === "login" ? "Welcome Back" : "Create Account"}
           </h2>
+
           <input
             style={styles.input}
             placeholder="Username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
           />
+
           <input
             style={styles.input}
             type="password"
@@ -310,6 +318,7 @@ function App() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
+
           {view === "login" ? (
             <>
               <button style={styles.primaryButton} onClick={login}>
@@ -340,9 +349,10 @@ function App() {
     );
   }
 
+  // ---------------- MAIN CHAT UI ----------------
   return (
     <div style={styles.chatContainer}>
-      {/* Sidebar */}
+      {/* SIDEBAR */}
       {(!isMobile || (!selectedUser && !selectedGroup)) && (
         <div style={styles.sidebar}>
           <div style={styles.sidebarHeader}>
@@ -352,7 +362,7 @@ function App() {
             </button>
           </div>
 
-          {/* Tabs */}
+          {/* TABS */}
           <div style={styles.tabRow}>
             <button
               style={tab === "users" ? styles.activeTab : styles.tab}
@@ -360,6 +370,7 @@ function App() {
             >
               Users
             </button>
+
             <button
               style={tab === "groups" ? styles.activeTab : styles.tab}
               onClick={() => {
@@ -372,20 +383,19 @@ function App() {
             </button>
           </div>
 
-          {/* Tab Content */}
+          {/* USERS */}
           {tab === "users" ? (
             <>
-              <div style={{ marginTop: "20px" }}>
-                <input
-                  style={styles.searchInput}
-                  placeholder="Search users..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                <button style={styles.searchButton} onClick={searchUsers}>
-                  Search
-                </button>
-              </div>
+              <input
+                style={styles.searchInput}
+                placeholder="Search users…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <button style={styles.searchButton} onClick={searchUsers}>
+                Search
+              </button>
+
               <div style={styles.searchResults}>
                 {searchResults.map((u) => (
                   <div
@@ -393,7 +403,7 @@ function App() {
                     style={{
                       ...styles.userItem,
                       background:
-                        selectedUser?.id === u.id ? "#0078d7" : "#2a2f38",
+                        selectedUser?.id === u.id ? "#2AABEE" : "#1f2a33",
                     }}
                     onClick={() => selectChatUser(u)}
                   >
@@ -404,36 +414,38 @@ function App() {
             </>
           ) : (
             <>
-              <div style={{ marginTop: "20px" }}>
-                <input
-                  style={styles.searchInput}
-                  placeholder="New group name..."
-                  value={newGroupName}
-                  onChange={(e) => setNewGroupName(e.target.value)}
-                />
-              </div>
+              {/* GROUP CREATE */}
+              <input
+                style={styles.searchInput}
+                placeholder="Group name…"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+              />
+
+              <h4 style={{ color: "#9bb0c0", marginTop: "10px" }}>
+                Select members:
+              </h4>
 
               <div
                 style={{
-                  marginTop: "10px",
-                  maxHeight: "150px",
+                  maxHeight: "130px",
                   overflowY: "auto",
+                  marginBottom: "10px",
                 }}
               >
-                <h4 style={{ color: "#ccc" }}>Select Members:</h4>
                 {searchResults.map((u) => (
                   <div
                     key={u.id}
                     style={{
                       ...styles.userItem,
                       background: selectedMembers.includes(u.id)
-                        ? "#0078d7"
-                        : "#2a2f38",
+                        ? "#2AABEE"
+                        : "#1f2a33",
                     }}
                     onClick={() => {
                       if (selectedMembers.includes(u.id))
                         setSelectedMembers(
-                          selectedMembers.filter((id) => id !== u.id)
+                          selectedMembers.filter((m) => m !== u.id)
                         );
                       else setSelectedMembers([...selectedMembers, u.id]);
                     }}
@@ -443,21 +455,19 @@ function App() {
                 ))}
               </div>
 
-              <button
-                style={{ ...styles.searchButton, marginTop: "10px" }}
-                onClick={createGroup}
-              >
+              <button style={styles.searchButton} onClick={createGroup}>
                 Create Group
               </button>
 
-              <div style={styles.searchResults}>
+              {/* GROUP LIST */}
+              <div style={{ ...styles.searchResults, marginTop: "20px" }}>
                 {groups.map((g) => (
                   <div
                     key={g.id}
                     style={{
                       ...styles.userItem,
                       background:
-                        selectedGroup?.id === g.id ? "#0078d7" : "#2a2f38",
+                        selectedGroup?.id === g.id ? "#2AABEE" : "#1f2a33",
                     }}
                     onClick={() => selectGroup(g)}
                   >
@@ -470,33 +480,42 @@ function App() {
         </div>
       )}
 
-      {/* Chat Window */}
+      {/* CHAT WINDOW */}
       {(!isMobile || selectedUser || selectedGroup) && (
         <div style={styles.chatWindow}>
           {selectedUser || selectedGroup ? (
             <>
-              {/* Header */}
+              {/* HEADER */}
               <div style={styles.chatHeader}>
                 {isMobile && (
                   <button
+                    style={styles.backButton}
                     onClick={() => {
                       setSelectedUser(null);
                       setSelectedGroup(null);
                     }}
-                    style={styles.backButton}
                   >
                     ← Back
                   </button>
                 )}
-                <h3 style={{ margin: 0 }}>
+
+                <span>
                   {selectedUser
-                    ? `Chat with ${selectedUser.username}`
+                    ? selectedUser.username
                     : selectedGroup?.name}
-                </h3>
+                </span>
               </div>
 
-              {/* Messages */}
-              <div style={styles.messages}>
+              {/* MESSAGE AREA */}
+              <div
+                style={{
+                  ...styles.messages,
+                  wordBreak: "break-word", // IMPORTANT FIX
+                  overflowWrap: "anywhere",
+                }}
+                onScroll={handleScroll}
+                ref={messagesBoxRef}
+              >
                 {messages.map((msg) => {
                   const date = msg.sent_date
                     ? new Date(`${msg.sent_date} ${msg.sent_time}`)
@@ -507,65 +526,74 @@ function App() {
                     minute: "2-digit",
                   });
 
+                  const isMine = msg.sender_id === user.id;
+
                   return (
                     <div
                       key={msg.id}
                       style={{
                         ...styles.message,
-                        alignSelf:
-                          msg.sender_id === user.id ? "flex-end" : "flex-start",
-                        background:
-                          msg.sender_id === user.id ? "#0078d7" : "#333",
+                        alignSelf: isMine ? "flex-end" : "flex-start",
+                        backgroundColor: isMine ? "#2AABEE" : "#1f2a33",
+                        wordBreak: "break-word",
+                        overflowWrap: "anywhere",
                       }}
                     >
-                      {selectedGroup && msg.sender_name && (
-                        <div style={{ fontSize: "12px", color: "#bbb" }}>
+                      {/* group sender name */}
+                      {selectedGroup && msg.sender_name && !isMine && (
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            color: "#9bb0c0",
+                            marginBottom: "4px",
+                          }}
+                        >
                           {msg.sender_name}
                         </div>
                       )}
-                      <div style={{ fontSize: "14px" }}>{msg.message}</div>
+
+                      <div>{msg.message}</div>
+
                       <div style={styles.messageMeta}>
                         <small>{time}</small>
-                        {msg.sender_id === user.id && (
+
+                        {isMine && (
                           <span
-                            style={styles.deleteIcon}
                             onClick={() => deleteMessage(msg.id)}
-                            title="Delete message"
+                            style={{
+                              cursor: "pointer",
+                              fontSize: "14px",
+                              marginLeft: "8px",
+                            }}
                           >
-                            🗑
+                            ❌
                           </span>
                         )}
                       </div>
                     </div>
                   );
                 })}
+
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Message Input */}
+              {/* MESSAGE INPUT */}
               <div style={styles.messageInput}>
                 <input
                   style={styles.textInput}
-                  placeholder="Type a message..."
+                  placeholder="Write a message..."
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      sendMessage();
-                    }
-                  }}
-                  autoFocus
+                  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
                 />
+
                 <button style={styles.sendButton} onClick={sendMessage}>
-                  Send
+                  ➤
                 </button>
               </div>
             </>
           ) : (
-            <div style={styles.emptyState}>
-              <h3>Select a user or group to start chatting</h3>
-            </div>
+            <div style={styles.emptyState}>Select a chat to start</div>
           )}
         </div>
       )}
