@@ -1,147 +1,161 @@
-// styles.js (Telegram Modern UI)
+// styles.js – Premium WhatsApp-Web + iMessage Hybrid UI
 
 const baseStyles = {
-  // ---------------- AUTH ----------------
+  // -------------------------------- AUTH --------------------------------
   authContainer: {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
     height: "100vh",
-    background: "linear-gradient(135deg, #0f2027, #203a43, #2c5364)",
+    background: "#f1f3f5",
   },
 
   authBox: {
-    background: "rgba(0,0,0,0.35)",
-    padding: "35px",
-    borderRadius: "16px",
-    width: "340px",
+    background: "#ffffff",
+    padding: "40px",
+    borderRadius: "20px",
+    width: "350px",
     textAlign: "center",
-    backdropFilter: "blur(12px)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    boxShadow: "0 6px 25px rgba(0,0,0,0.3)",
+    border: "1px solid #e5e5e5",
+    boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
   },
 
   title: {
-    color: "#fff",
-    fontSize: "24px",
-    fontWeight: "600",
-    marginBottom: "20px",
+    color: "#222",
+    fontSize: "26px",
+    fontWeight: "700",
+    marginBottom: "25px",
   },
 
   input: {
-    padding: "12px",
-    margin: "10px 0",
+    padding: "14px",
+    marginTop: "12px",
     width: "100%",
-    borderRadius: "10px",
-    border: "1px solid rgba(255,255,255,0.1)",
-    background: "rgba(255,255,255,0.1)",
-    color: "#fff",
+    borderRadius: "12px",
+    border: "1px solid #dcdcdc",
+    background: "#fafafa",
+    color: "#000",
     fontSize: "15px",
     outline: "none",
   },
 
   primaryButton: {
     width: "100%",
-    padding: "12px",
-    background: "#2AABEE",
+    padding: "14px",
+    background: "#25D366",
     border: "none",
-    borderRadius: "10px",
+    borderRadius: "12px",
     color: "#fff",
     cursor: "pointer",
-    fontSize: "16px",
-    fontWeight: "600",
-    marginTop: "10px",
+    fontSize: "17px",
+    marginTop: "18px",
+    fontWeight: "700",
   },
 
-  switchText: { color: "#eee", marginTop: "15px" },
-  link: { color: "#2AABEE", cursor: "pointer", fontWeight: "600" },
+  switchText: {
+    color: "#555",
+    marginTop: "16px",
+    fontSize: "14px",
+  },
 
-  // ---------------- CHAT LAYOUT ----------------
+  link: {
+    color: "#25D366",
+    cursor: "pointer",
+    fontWeight: "600",
+  },
+
+  // ------------------------------ MAIN LAYOUT ------------------------------
   chatContainer: {
     display: "flex",
     height: "100vh",
-    background: "#0e1621",
-    color: "#fff",
+    background: "#eceff1",
+    color: "#111",
     fontFamily: "Segoe UI, sans-serif",
   },
 
-  // ---------------- SIDEBAR ----------------
+  // ------------------------------- SIDEBAR --------------------------------
   sidebar: {
-    width: "27%",
-    background: "#17212b",
+    width: "28%",
+    background: "#ffffff",
     display: "flex",
     flexDirection: "column",
-    padding: "18px",
-    borderRight: "1px solid #1c2932",
+    borderRight: "1px solid #ddd",
+    boxShadow: "2px 0 8px rgba(0,0,0,0.06)",
   },
 
   sidebarHeader: {
+    padding: "20px",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingBottom: "10px",
+    background: "rgba(255,255,255,0.75)",
+    backdropFilter: "blur(10px)",
+    borderBottom: "1px solid #e5e5e5",
   },
 
   logoutButton: {
-    background: "#e63946",
+    background: "#ff4d4f",
     border: "none",
-    padding: "7px 12px",
-    borderRadius: "8px",
+    padding: "8px 15px",
+    borderRadius: "10px",
     color: "#fff",
     cursor: "pointer",
+    fontWeight: "600",
   },
 
   tabRow: {
     display: "flex",
-    gap: "8px",
-    marginTop: "12px",
+    gap: "10px",
+    padding: "12px 18px",
   },
 
   tab: {
     flex: 1,
-    background: "#1f2a33",
-    border: "none",
+    background: "#f0f0f0",
     padding: "10px",
     borderRadius: "10px",
-    color: "#9bb0c0",
+    border: "1px solid #ddd",
+    color: "#333",
     cursor: "pointer",
-    fontWeight: "500",
+    fontWeight: "600",
   },
 
   activeTab: {
     flex: 1,
-    background: "#2AABEE",
-    border: "none",
+    background: "#25D366",
     padding: "10px",
     borderRadius: "10px",
+    border: "1px solid #25D366",
     color: "#fff",
-    fontWeight: "600",
+    cursor: "pointer",
+    fontWeight: "700",
   },
 
   searchInput: {
-    padding: "12px",
+    padding: "14px",
     borderRadius: "10px",
-    border: "none",
-    width: "100%",
-    marginTop: "15px",
-    background: "#1f2a33",
-    color: "#fff",
+    border: "1px solid #ddd",
+    background: "#fafafa",
+    margin: "12px 18px 0 18px",
+    fontSize: "14px",
     outline: "none",
   },
 
   searchButton: {
-    width: "100%",
-    padding: "10px",
-    background: "#2AABEE",
+    margin: "10px 18px",
+    padding: "12px",
+    background: "#25D366",
     border: "none",
     borderRadius: "10px",
     color: "#fff",
     cursor: "pointer",
-    marginTop: "8px",
+    fontSize: "15px",
+    fontWeight: "600",
   },
 
   searchResults: {
-    marginTop: "15px",
+    padding: "0 18px",
+    marginTop: "12px",
     overflowY: "auto",
     flex: 1,
   },
@@ -151,105 +165,111 @@ const baseStyles = {
     margin: "8px 0",
     borderRadius: "12px",
     cursor: "pointer",
-    color: "#fff",
+    color: "#111",
     fontSize: "15px",
-    background: "#1f2a33",
+    background: "#f7f7f7",
+    border: "1px solid #eee",
     transition: "0.2s",
   },
 
-  // ---------------- CHAT WINDOW ----------------
+  // ------------------------------ CHAT WINDOW ------------------------------
   chatWindow: {
     flex: 1,
     display: "flex",
     flexDirection: "column",
-    background: "url('https://telegram.org/img/bg_pattern.webp') #0e1621",
-    backgroundSize: "300px",
+    background: "#f9f9f9",
+    position: "relative",
   },
 
   chatHeader: {
     padding: "18px",
-    borderBottom: "1px solid #1c2932",
-    background: "#17212b",
+    borderBottom: "1px solid #ddd",
+    background: "#ffffff",
     display: "flex",
     alignItems: "center",
-    gap: "10px",
-    fontSize: "18px",
+    gap: "12px",
+    fontSize: "20px",
     fontWeight: "600",
+    color: "#111",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
   },
 
   backButton: {
     background: "transparent",
     border: "none",
-    color: "#2AABEE",
-    fontSize: "18px",
+    color: "#25D366",
+    fontSize: "20px",
     cursor: "pointer",
   },
 
-  // ---------------- MESSAGES LIST ----------------
+  // ----------------------------- MESSAGES AREA -----------------------------
   messages: {
     flex: 1,
-    padding: "20px",
+    padding: "24px",
     overflowY: "auto",
     display: "flex",
     flexDirection: "column",
-    gap: "12px",
+    background: "#e7ecef",
+    gap: "14px",
   },
 
   message: {
-    maxWidth: "75%",
-    padding: "12px 16px",
-    borderRadius: "12px",
-    color: "#fff",
+    maxWidth: "70%",
+    padding: "14px 18px",
+    borderRadius: "18px",
+    color: "#111",
     fontSize: "15px",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
-    position: "relative",
-    lineHeight: "20px",
+    background: "#ffffff",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.10)",
+    wordBreak: "break-word",
+    overflowWrap: "anywhere",
   },
 
   messageMeta: {
     fontSize: "11px",
-    color: "rgba(255,255,255,0.7)",
-    marginTop: "4px",
+    color: "#666",
+    marginTop: "6px",
     display: "flex",
     justifyContent: "flex-end",
-    gap: "8px",
+    gap: "10px",
   },
 
   deleteIcon: {
     cursor: "pointer",
-    opacity: 0.7,
-    fontSize: "13px",
+    fontSize: "16px",
+    color: "red",
   },
 
-  // ---------------- MESSAGE INPUT ----------------
+  // ---------------------------- MESSAGE INPUT ----------------------------
   messageInput: {
     display: "flex",
-    padding: "14px",
-    borderTop: "1px solid #1c2932",
-    background: "#17212b",
+    padding: "16px",
+    background: "#ffffff",
+    borderTop: "1px solid #ddd",
     alignItems: "center",
-    gap: "10px",
+    gap: "12px",
+    boxShadow: "0 -2px 6px rgba(0,0,0,0.05)",
   },
 
   textInput: {
     flex: 1,
-    padding: "12px",
+    padding: "14px",
     borderRadius: "12px",
-    border: "none",
-    background: "#1f2a33",
-    color: "#fff",
-    outline: "none",
+    border: "1px solid #ddd",
+    background: "#fefefe",
     fontSize: "15px",
+    outline: "none",
   },
 
   sendButton: {
-    padding: "12px 18px",
-    background: "#2AABEE",
+    padding: "14px 20px",
+    background: "#25D366",
     border: "none",
-    borderRadius: "14px",
+    borderRadius: "12px",
     color: "#fff",
     cursor: "pointer",
-    fontWeight: "600",
+    fontSize: "16px",
+    fontWeight: "700",
   },
 
   emptyState: {
@@ -257,30 +277,35 @@ const baseStyles = {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    color: "#70808f",
-    fontSize: "18px",
+    color: "#777",
+    fontSize: "20px",
   },
 };
 
-// ---------------- MOBILE OVERRIDES ----------------
+// ----------------------------- MOBILE OVERRIDES -----------------------------
 const mobileOverrides = {
   sidebar: {
     width: "100%",
     height: "auto",
     borderRight: "none",
-    borderBottom: "1px solid #1c2932",
+    borderBottom: "1px solid #ddd",
+  },
+
+  message: {
+    maxWidth: "85%",
   },
 
   chatWindow: {
     width: "100%",
-    height: "calc(100vh - 200px)",
   },
 
-  message: { maxWidth: "90%" },
-
-  sendButton: { borderRadius: "50%", padding: "12px" },
+  sendButton: {
+    borderRadius: "50%",
+    padding: "14px",
+  },
 };
 
+// ----------------------------- UTILITY -----------------------------
 function mergeStyles(base, overrides) {
   const merged = {};
   Object.keys(base).forEach((key) => {

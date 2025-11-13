@@ -16,29 +16,26 @@ function App() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  // Search users
+  // Search
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
 
   // Chat
   const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedGroup, setSelectedGroup] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
 
   // Groups
   const [tab, setTab] = useState("users");
   const [groups, setGroups] = useState([]);
-  const [selectedGroup, setSelectedGroup] = useState(null);
-  const [groupMembers, setGroupMembers] = useState([]);
 
   const [newGroupName, setNewGroupName] = useState("");
   const [selectedMembers, setSelectedMembers] = useState([]);
-  const [memberSearchQuery, setMemberSearchQuery] = useState("");
-  const [memberSearchResults, setMemberSearchResults] = useState([]);
 
   const isMobile = window.innerWidth < 768;
 
-  // scroll tracking
+  // Scroll refs
   const messagesEndRef = useRef(null);
   const messagesBoxRef = useRef(null);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
@@ -105,9 +102,7 @@ function App() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setSearchResults(res.data);
-    } catch {
-      alert("Search error");
-    }
+    } catch {}
   };
 
   const fetchAllUsers = async () => {
@@ -150,9 +145,7 @@ function App() {
       setNewGroupName("");
       setSelectedMembers([]);
       fetchGroups();
-    } catch {
-      alert("Error creating group");
-    }
+    } catch {}
   };
 
   const selectGroup = (g) => {
@@ -160,47 +153,6 @@ function App() {
     setSelectedGroup(g);
     setMessages([]);
     fetchMessages(null, g.id);
-  };
-
-  const searchMembers = async () => {
-    if (!memberSearchQuery.trim()) return;
-
-    try {
-      const res = await axios.get(
-        `${API_URL}/api/auth/search?query=${memberSearchQuery}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      const filtered = res.data.filter(
-        (u) => !groupMembers.map((m) => m.id).includes(u.id)
-      );
-
-      setMemberSearchResults(filtered);
-    } catch {}
-  };
-
-  const addMembersToGroup = async () => {
-    if (selectedMembers.length === 0) return;
-
-    try {
-      await axios.post(
-        `${API_URL}/api/groups/${selectedGroup.id}/add-members`,
-        { members: selectedMembers },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      setGroupMembers([
-        ...groupMembers,
-        ...selectedMembers.map((id) =>
-          memberSearchResults.find((u) => u.id === id)
-        ),
-      ]);
-
-      setSelectedMembers([]);
-      setMemberSearchQuery("");
-    } catch {
-      alert("Error adding members");
-    }
   };
 
   // ---------------- MESSAGES ----------------
@@ -225,14 +177,16 @@ function App() {
   // POLLING
   useEffect(() => {
     let interval;
+
     if (selectedUser || selectedGroup) {
       interval = setInterval(() => {
         if (selectedUser) fetchMessages(selectedUser.id, null);
         if (selectedGroup) fetchMessages(null, selectedGroup.id);
       }, 1000);
     }
+
     return () => clearInterval(interval);
-  }, [selectedUser, selectedGroup]);
+  }, [selectedUser, selectedGroup, token]);
 
   // SEND MESSAGE
   const sendMessage = async () => {
@@ -256,9 +210,7 @@ function App() {
       }
 
       setNewMessage("");
-    } catch {
-      alert("Send failed");
-    }
+    } catch {}
   };
 
   // DELETE MESSAGE
@@ -283,17 +235,17 @@ function App() {
     const el = messagesBoxRef.current;
     if (!el) return;
 
-    const isAtBottom =
-      el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    const atBottom =
+      el.scrollHeight - el.scrollTop - el.clientHeight < 100;
 
-    setIsUserScrolling(!isAtBottom);
+    setIsUserScrolling(!atBottom);
   };
 
   useEffect(() => {
     if (!isUserScrolling && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages]);
+  }, [messages, isUserScrolling]);
 
   // ---------------- AUTH UI ----------------
   if (view === "login" || view === "register") {
@@ -349,7 +301,7 @@ function App() {
     );
   }
 
-  // ---------------- MAIN CHAT UI ----------------
+  // ---------------- MAIN CHAT SCREEN ----------------
   return (
     <div style={styles.chatContainer}>
       {/* SIDEBAR */}
@@ -370,7 +322,6 @@ function App() {
             >
               Users
             </button>
-
             <button
               style={tab === "groups" ? styles.activeTab : styles.tab}
               onClick={() => {
@@ -383,12 +334,12 @@ function App() {
             </button>
           </div>
 
-          {/* USERS */}
+          {/* TAB CONTENT */}
           {tab === "users" ? (
             <>
               <input
                 style={styles.searchInput}
-                placeholder="Search users…"
+                placeholder="Search users..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -414,10 +365,10 @@ function App() {
             </>
           ) : (
             <>
-              {/* GROUP CREATE */}
+              {/* CREATE GROUP */}
               <input
                 style={styles.searchInput}
-                placeholder="Group name…"
+                placeholder="Group name..."
                 value={newGroupName}
                 onChange={(e) => setNewGroupName(e.target.value)}
               />
@@ -428,7 +379,7 @@ function App() {
 
               <div
                 style={{
-                  maxHeight: "130px",
+                  maxHeight: "140px",
                   overflowY: "auto",
                   marginBottom: "10px",
                 }}
@@ -445,7 +396,7 @@ function App() {
                     onClick={() => {
                       if (selectedMembers.includes(u.id))
                         setSelectedMembers(
-                          selectedMembers.filter((m) => m !== u.id)
+                          selectedMembers.filter((i) => i !== u.id)
                         );
                       else setSelectedMembers([...selectedMembers, u.id]);
                     }}
@@ -498,7 +449,6 @@ function App() {
                     ← Back
                   </button>
                 )}
-
                 <span>
                   {selectedUser
                     ? selectedUser.username
@@ -506,11 +456,11 @@ function App() {
                 </span>
               </div>
 
-              {/* MESSAGE AREA */}
+              {/* MESSAGES */}
               <div
                 style={{
                   ...styles.messages,
-                  wordBreak: "break-word", // IMPORTANT FIX
+                  wordBreak: "break-word",
                   overflowWrap: "anywhere",
                 }}
                 onScroll={handleScroll}
@@ -535,11 +485,9 @@ function App() {
                         ...styles.message,
                         alignSelf: isMine ? "flex-end" : "flex-start",
                         backgroundColor: isMine ? "#2AABEE" : "#1f2a33",
-                        wordBreak: "break-word",
-                        overflowWrap: "anywhere",
                       }}
                     >
-                      {/* group sender name */}
+                      {/* group sender */}
                       {selectedGroup && msg.sender_name && !isMine && (
                         <div
                           style={{
@@ -556,7 +504,6 @@ function App() {
 
                       <div style={styles.messageMeta}>
                         <small>{time}</small>
-
                         {isMine && (
                           <span
                             onClick={() => deleteMessage(msg.id)}
@@ -577,7 +524,7 @@ function App() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* MESSAGE INPUT */}
+              {/* INPUT */}
               <div style={styles.messageInput}>
                 <input
                   style={styles.textInput}
@@ -586,7 +533,6 @@ function App() {
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && sendMessage()}
                 />
-
                 <button style={styles.sendButton} onClick={sendMessage}>
                   ➤
                 </button>
