@@ -5,8 +5,8 @@ import { io } from "socket.io-client";
 import "./App.css";
 import { IoSend } from "react-icons/io5";
 
-// const API_URL = "https://chat-app-backend-tjcb.onrender.com";
-const API_URL = "http://localhost:5000"
+const API_URL = "https://chat-app-backend-tjcb.onrender.com";
+// const API_URL = "http://localhost:5000"
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem("token") || "");
