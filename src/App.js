@@ -1,8 +1,10 @@
+/* eslint-disable no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import "./App.css";
 
-const API_URL = "https://chat-app-backend-tjcb.onrender.com";
+const API_URL = "http://localhost:5000";
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem("token") || "");
@@ -28,12 +30,30 @@ function App() {
   const [showCreateGroup, setShowCreateGroup] = useState(false);
 
   const [loading, setLoading] = useState(false);
-  const [statusText, setStatusText] = useState("");
-  const [editingId, setEditingId] = useState(null);
+
+  
+  const [toast, setToast] = useState({
+    show: false,
+    message: "",
+    type: "success",
+  });  const [editingId, setEditingId] = useState(null);
+  
   const [editingText, setEditingText] = useState("");
 
   const bottomRef = useRef(null);
+  const toastTimeoutRef = useRef(null);
 
+  const showToast = (message, type = "success") => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+  
+    setToast({ show: true, message, type });
+  
+    toastTimeoutRef.current = setTimeout(() => {
+      setToast({ show: false, message: "", type: "success" });
+    }, 3000);
+  };
   const authHeaders = useMemo(() => {
     return {
       "Content-Type": "application/json",
@@ -79,11 +99,11 @@ function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-      setStatusText(data.message || "Registered successfully");
+      showToast(data.message || "Registered successfully", "success"); 
       setView("login");
       setPassword("");
     } catch (err) {
-      setStatusText(err.message);
+      showToast(err.message, "error");
     } finally {
       setLoading(false);
     }
@@ -99,9 +119,9 @@ function App() {
       });
 
       saveAuth(data.token, data.user);
-      setStatusText("Login successful");
-    } catch (err) {
-      setStatusText(err.message);
+      showToast("Login successful", "success");
+        } catch (err) {
+      showToast(err.message, "error");
     } finally {
       setLoading(false);
     }
@@ -114,7 +134,7 @@ function App() {
       });
       setUsers(data.users || []);
     } catch (err) {
-      setStatusText(err.message);
+      showToast(err.message, "error");
     }
   };
 
@@ -125,7 +145,7 @@ function App() {
       });
       setConversations(data.conversations || []);
     } catch (err) {
-      setStatusText(err.message);
+      showToast(err.message, "error");
     }
   };
 
@@ -137,7 +157,7 @@ function App() {
       });
       setMessages(data.messages || []);
     } catch (err) {
-      setStatusText(err.message);
+      showToast(err.message, "error");
     }
   };
 
@@ -159,14 +179,14 @@ function App() {
       setSelectedConversation(conv);
       await fetchMessages(conv.id);
     } catch (err) {
-      setStatusText(err.message);
+      showToast(err.message, "error");
     }
   };
   const createGroup = async () => {
     try {
       if (!groupName.trim()) {
-        setStatusText("Enter group name");
-        return;
+        showToast("Enter group name", "error");
+                return;
       }
 
       const data = await api("/api/groups", {
@@ -181,8 +201,8 @@ function App() {
       setGroupName("");
       setSelectedMembers([]);
       setShowCreateGroup(false);
-      setStatusText("Group created");
-      await fetchConversations();
+      showToast("Group created", "success");
+            await fetchConversations();
 
       if (data.conversation) {
         setSelectedConversation({
@@ -193,7 +213,7 @@ function App() {
         await fetchMessages(data.conversation.id);
       }
     } catch (err) {
-      setStatusText(err.message);
+      showToast(err.message, "error");
     }
   };
 
@@ -220,7 +240,7 @@ const sendMessage = () => {
       await fetchMessages(selectedConversation.id);
       await fetchConversations();
     } catch (err) {
-      setStatusText(err.message);
+      showToast(err.message, "error");
     }
   };
 
@@ -238,9 +258,16 @@ const sendMessage = () => {
       setEditingText("");
       await fetchMessages(selectedConversation.id);
     } catch (err) {
-      setStatusText(err.message);
+      showToast(err.message, "error");
     }
   };
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!token || !user) return;
@@ -327,15 +354,11 @@ const sendMessage = () => {
           >
             {loading ? "Please wait..." : view === "login" ? "Login" : "Register"}
           </button>
-
-          <div className="status">{statusText}</div>
-
           <p className="switch-text">
             {view === "login" ? "No account?" : "Already have an account?"}{" "}
             <span
               className="link-text"
               onClick={() => {
-                setStatusText("");
                 setView(view === "login" ? "register" : "login");
               }}
             >
@@ -574,8 +597,11 @@ const sendMessage = () => {
           </div>
         )}
 
-        {statusText && <div className="toast">{statusText}</div>}
-      </main>
+{toast.show && (
+  <div className={`toast toast-${toast.type}`}>
+    {toast.message}
+  </div>
+)}      </main>
     </div>
   );
 }
