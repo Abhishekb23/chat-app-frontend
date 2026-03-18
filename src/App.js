@@ -272,9 +272,18 @@ const sendMessage = () => {
   useEffect(() => {
     if (!token || !user) return;
   
-    socketRef.current = io(API_URL);
+    socketRef.current = io(API_URL, {
+      transports: ["websocket", "polling"],
+      withCredentials: true,
+    });
   
-    socketRef.current.emit("register", user.id);
+    socketRef.current.on("connect", () => {
+      socketRef.current.emit("register", user.id);
+    });
+  
+    socketRef.current.on("connect_error", (err) => {
+      console.error("Socket connect error:", err.message);
+    });
   
     return () => {
       socketRef.current?.disconnect();
