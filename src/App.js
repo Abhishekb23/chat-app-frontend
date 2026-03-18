@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import "./App.css";
 
-const API_URL = "http://localhost:5000";
+const API_URL = "https://chat-app-backend-tjcb.onrender.com";
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem("token") || "");
