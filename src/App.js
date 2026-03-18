@@ -39,7 +39,13 @@ function App() {
   });  const [editingId, setEditingId] = useState(null);
   
   const [editingText, setEditingText] = useState("");
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
   const bottomRef = useRef(null);
   const toastTimeoutRef = useRef(null);
 
@@ -379,239 +385,260 @@ const sendMessage = () => {
     );
   }
 
+
+
   return (
     <div className="app-shell">
-      <aside className="sidebar">
-        <div className="sidebar-top">
-          <div>
-            <h2>Chats</h2>
-            <div className="logged-user">Hi, {user?.username}</div>
-          </div>
-          <button className="danger-btn" onClick={clearAuth}>
-            Logout
+  {(!isMobile || !selectedConversation) && (
+    <aside className="sidebar">
+      <div className="sidebar-top">
+        <div>
+          <h2>Chats</h2>
+          <div className="logged-user">Hi, {user?.username}</div>
+        </div>
+        <button className="danger-btn" onClick={clearAuth}>
+          Logout
+        </button>
+      </div>
+
+      <div className="search-box">
+        <input
+          className="input search-input"
+          placeholder="Search users"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <button className="secondary-btn" onClick={() => fetchUsers(search)}>
+          Search
+        </button>
+      </div>
+
+      <div className="section">
+        <div className="section-header">
+          <h3>Users</h3>
+          <button
+            className="ghost-btn"
+            onClick={() => {
+              setShowCreateGroup((p) => !p);
+              fetchUsers("");
+            }}
+          >
+            {showCreateGroup ? "Close Group" : "New Group"}
           </button>
         </div>
 
-        <div className="search-box">
+        <div className="list">
+          {users.map((u) => (
+            <div
+              key={u.id}
+              className="list-item"
+              onClick={() => startDirectChat(u)}
+            >
+              <div className="avatar">{u.username.charAt(0).toUpperCase()}</div>
+              <div>
+                <div className="item-title">{u.username}</div>
+                <div className="item-sub">Start direct conversation</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {showCreateGroup && (
+        <div className="group-box">
+          <h3>Create Group</h3>
           <input
-            className="input search-input"
-            placeholder="Search users"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            className="input"
+            placeholder="Group name"
+            value={groupName}
+            onChange={(e) => setGroupName(e.target.value)}
           />
-          <button className="secondary-btn" onClick={() => fetchUsers(search)}>
-            Search
+
+          <div className="members-grid">
+            {users.map((u) => {
+              const active = selectedMembers.includes(u.id);
+              return (
+                <div
+                  key={u.id}
+                  className={`member-chip ${active ? "active" : ""}`}
+                  onClick={() => {
+                    setSelectedMembers((prev) =>
+                      prev.includes(u.id)
+                        ? prev.filter((id) => id !== u.id)
+                        : [...prev, u.id]
+                    );
+                  }}
+                >
+                  {u.username}
+                </div>
+              );
+            })}
+          </div>
+
+          <button className="primary-btn" onClick={createGroup}>
+            Create Group
           </button>
         </div>
+      )}
 
-        <div className="section">
-          <div className="section-header">
-            <h3>Users</h3>
-            <button
-              className="ghost-btn"
+      <div className="section">
+        <h3>Conversations</h3>
+        <div className="list">
+          {conversations.map((c) => (
+            <div
+              key={c.id}
+              className={`conversation-item ${
+                selectedConversation?.id === c.id ? "selected" : ""
+              }`}
               onClick={() => {
-                setShowCreateGroup((p) => !p);
-                fetchUsers("");
+                setSelectedConversation(c);
               }}
             >
-              {showCreateGroup ? "Close Group" : "New Group"}
-            </button>
-          </div>
-
-          <div className="list">
-            {users.map((u) => (
-              <div
-                key={u.id}
-                className="list-item"
-                onClick={() => startDirectChat(u)}
-              >
-                <div className="avatar">{u.username.charAt(0).toUpperCase()}</div>
-                <div>
-                  <div className="item-title">{u.username}</div>
-                  <div className="item-sub">Start direct conversation</div>
+              <div className="avatar">
+                {(c.name || "C").charAt(0).toUpperCase()}
+              </div>
+              <div className="conversation-content">
+                <div className="item-title">{c.name}</div>
+                <div className="item-sub">
+                  {c.last_message || "No messages yet"}
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {showCreateGroup && (
-          <div className="group-box">
-            <h3>Create Group</h3>
-            <input
-              className="input"
-              placeholder="Group name"
-              value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
-            />
-
-            <div className="members-grid">
-              {users.map((u) => {
-                const active = selectedMembers.includes(u.id);
-                return (
-                  <div
-                    key={u.id}
-                    className={`member-chip ${active ? "active" : ""}`}
-                    onClick={() => {
-                      setSelectedMembers((prev) =>
-                        prev.includes(u.id)
-                          ? prev.filter((id) => id !== u.id)
-                          : [...prev, u.id]
-                      );
-                    }}
-                  >
-                    {u.username}
-                  </div>
-                );
-              })}
             </div>
-
-            <button className="primary-btn" onClick={createGroup}>
-              Create Group
-            </button>
-          </div>
-        )}
-
-        <div className="section">
-          <h3>Conversations</h3>
-          <div className="list">
-            {conversations.map((c) => (
-              <div
-                key={c.id}
-                className={`conversation-item ${
-                  selectedConversation?.id === c.id ? "selected" : ""
-                }`}
-                onClick={() => setSelectedConversation(c)}
-              >
-                <div className="avatar">
-                  {(c.name || "C").charAt(0).toUpperCase()}
-                </div>
-                <div className="conversation-content">
-                  <div className="item-title">{c.name}</div>
-                  <div className="item-sub">
-                    {c.last_message || "No messages yet"}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+          ))}
         </div>
-      </aside>
+      </div>
+    </aside>
+  )}
 
-      <main className="chat-panel">
-        {selectedConversation ? (
-          <>
-            <div className="chat-header">
+  {(!isMobile || selectedConversation) && (
+    <main className="chat-panel">
+      {selectedConversation ? (
+        <>
+          <div className="chat-header">
+            <div className="chat-header-row">
+              {isMobile && (
+                <button
+                  className="back-btn"
+                  onClick={() => setSelectedConversation(null)}
+                >
+                  ←
+                </button>
+              )}
               <div>
                 <h2>{selectedConversation.name}</h2>
                 <div className="chat-sub">
-                  {selectedConversation.type === "GROUP" ? "Group chat" : "Direct chat"}
+                  {selectedConversation.type === "GROUP"
+                    ? "Group chat"
+                    : "Direct chat"}
                 </div>
               </div>
             </div>
+          </div>
 
-            <div className="messages-area">
-              {messages.map((msg) => {
-                const mine = msg.sender_id === user?.id;
-                return (
-                  <div
-                    key={msg.id}
-                    className={`message-row ${mine ? "mine" : "theirs"}`}
-                  >
-                    <div className={`message-bubble ${mine ? "mine" : "theirs"}`}>
-                      {!mine && (
-                        <div className="sender-name">{msg.sender_name}</div>
-                      )}
+          <div className="messages-area">
+            {messages.map((msg) => {
+              const mine = msg.sender_id === user?.id;
+              return (
+                <div
+                  key={msg.id}
+                  className={`message-row ${mine ? "mine" : "theirs"}`}
+                >
+                  <div className={`message-bubble ${mine ? "mine" : "theirs"}`}>
+                    {!mine && (
+                      <div className="sender-name">{msg.sender_name}</div>
+                    )}
 
-                      {editingId === msg.id ? (
-                        <div className="edit-box">
-                          <textarea
-                            className="edit-textarea"
-                            value={editingText}
-                            onChange={(e) => setEditingText(e.target.value)}
-                          />
-                          <div className="edit-actions">
-                            <button className="secondary-btn" onClick={updateMessage}>
-                              Save
-                            </button>
-                            <button
-                              className="ghost-btn"
-                              onClick={() => {
-                                setEditingId(null);
-                                setEditingText("");
-                              }}
-                            >
-                              Cancel
-                            </button>
-                          </div>
+                    {editingId === msg.id ? (
+                      <div className="edit-box">
+                        <textarea
+                          className="edit-textarea"
+                          value={editingText}
+                          onChange={(e) => setEditingText(e.target.value)}
+                        />
+                        <div className="edit-actions">
+                          <button className="secondary-btn" onClick={updateMessage}>
+                            Save
+                          </button>
+                          <button
+                            className="ghost-btn"
+                            onClick={() => {
+                              setEditingId(null);
+                              setEditingText("");
+                            }}
+                          >
+                            Cancel
+                          </button>
                         </div>
-                      ) : (
-                        <div className="message-text">{msg.content}</div>
-                      )}
-
-                      <div className="message-meta">
-                        <span>
-                          {new Date(msg.created_at).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                        {msg.is_edited && !msg.is_deleted && <span>edited</span>}
-                        {mine && !msg.is_deleted && editingId !== msg.id && (
-                          <>
-                            <button
-                              className="small-link"
-                              onClick={() => {
-                                setEditingId(msg.id);
-                                setEditingText(msg.content);
-                              }}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              className="small-link delete"
-                              onClick={() => deleteMessage(msg.id)}
-                            >
-                              Delete
-                            </button>
-                          </>
-                        )}
                       </div>
+                    ) : (
+                      <div className="message-text">{msg.content}</div>
+                    )}
+
+                    <div className="message-meta">
+                      <span>
+                        {new Date(msg.created_at).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                      {msg.is_edited && !msg.is_deleted && <span>edited</span>}
+                      {mine && !msg.is_deleted && editingId !== msg.id && (
+                        <>
+                          <button
+                            className="small-link"
+                            onClick={() => {
+                              setEditingId(msg.id);
+                              setEditingText(msg.content);
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="small-link delete"
+                            onClick={() => deleteMessage(msg.id)}
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
-                );
-              })}
-              <div ref={bottomRef} />
-            </div>
-
-            <div className="composer">
-              <input
-                className="composer-input"
-                placeholder="Type your message..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-              />
-              <button className="primary-btn send-btn" onClick={sendMessage}>
-                Send
-              </button>
-            </div>
-          </>
-        ) : (
-          <div className="empty-state">
-            <div className="empty-card">
-              <h2>Select a conversation</h2>
-              <p>Search a user, create a group, and start chatting.</p>
-            </div>
+                </div>
+              );
+            })}
+            <div ref={bottomRef} />
           </div>
-        )}
 
-{toast.show && (
-  <div className={`toast toast-${toast.type}`}>
-    {toast.message}
-  </div>
-)}      </main>
-    </div>
+          <div className="composer">
+            <input
+              className="composer-input"
+              placeholder="Type your message..."
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+            />
+            <button className="primary-btn send-btn" onClick={sendMessage}>
+              Send
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="empty-state">
+          <div className="empty-card">
+            <h2>Select a conversation</h2>
+            <p>Search a user, create a group, and start chatting.</p>
+          </div>
+        </div>
+      )}
+
+      {toast.show && (
+        <div className={`toast toast-${toast.type}`}>
+          {toast.message}
+        </div>
+      )}
+    </main>
+  )}
+</div>
   );
 }
 
