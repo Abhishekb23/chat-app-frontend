@@ -3,8 +3,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import "./App.css";
+import { IoSend } from "react-icons/io5";
 
-const API_URL = "https://chat-app-backend-tjcb.onrender.com";
+// const API_URL = "https://chat-app-backend-tjcb.onrender.com";
+const API_URL = "http://localhost:5000"
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem("token") || "");
@@ -30,7 +32,10 @@ function App() {
   const [showCreateGroup, setShowCreateGroup] = useState(false);
 
   const [loading, setLoading] = useState(false);
-
+  const [showAddMembers, setShowAddMembers] = useState(false);
+  const [groupSearch, setGroupSearch] = useState("");
+  const [groupSearchResults, setGroupSearchResults] = useState([]);
+  const [membersToAdd, setMembersToAdd] = useState([]);
   const [toast, setToast] = useState({
     show: false,
     message: "",
@@ -97,7 +102,57 @@ function App() {
     return data;
   };
 
+  const searchUsersForGroup = async (q = "") => {
+    try {
+      const trimmed = q.trim();
   
+      if (!trimmed) {
+        setGroupSearchResults([]);
+        return;
+      }
+  
+      const data = await api(
+        `/api/users/search?q=${encodeURIComponent(trimmed)}`,
+        {
+          headers: authHeaders,
+        },
+      );
+  
+      setGroupSearchResults(data.users || []);
+    } catch (err) {
+      showToast(err.message, "error");
+    }
+  };
+  
+  const addMembersToGroup = async () => {
+    try {
+      if (!selectedConversation || selectedConversation.type !== "GROUP") {
+        showToast("Open a group first", "error");
+        return;
+      }
+  
+      if (membersToAdd.length === 0) {
+        showToast("Select at least one user", "error");
+        return;
+      }
+  
+      await api(`/api/groups/${selectedConversation.id}/members`, {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({
+          memberIds: membersToAdd,
+        }),
+      });
+  
+      showToast("Members added successfully", "success");
+      setShowAddMembers(false);
+      setGroupSearch("");
+      setGroupSearchResults([]);
+      setMembersToAdd([]);
+    } catch (err) {
+      showToast(err.message, "error");
+    }
+  };
 
   const register = async () => {
     try {
@@ -536,25 +591,77 @@ function App() {
           {selectedConversation ? (
             <>
               <div className="chat-header">
-                <div className="chat-header-row">
-                  {isMobile && (
-                    <button
-                      className="back-btn"
-                      onClick={() => setSelectedConversation(null)}
-                    >
-                      ←
-                    </button>
-                  )}
-                  <div>
-                    <h2>{selectedConversation.name}</h2>
-                    <div className="chat-sub">
-                      {selectedConversation.type === "GROUP"
-                        ? "Group chat"
-                        : "Direct chat"}
-                    </div>
-                  </div>
-                </div>
-              </div>
+  <div className="chat-header-row">
+    {isMobile && (
+      <button
+        className="back-btn"
+        onClick={() => setSelectedConversation(null)}
+      >
+        ←
+      </button>
+    )}
+
+    <div className="chat-header-main">
+      <div>
+        <h2>{selectedConversation.name}</h2>
+        <div className="chat-sub">
+          {selectedConversation.type === "GROUP"
+            ? "Group chat"
+            : "Direct chat"}
+        </div>
+      </div>
+
+      {selectedConversation.type === "GROUP" && (
+        <button
+          className="ghost-btn add-member-btn"
+          onClick={() => setShowAddMembers((prev) => !prev)}
+        >
+          {showAddMembers ? "Close" : "Add Members"}
+        </button>
+      )}
+    </div>
+  </div>
+</div>
+
+{selectedConversation?.type === "GROUP" && showAddMembers && (
+  <div className="group-add-panel">
+    <div className="group-add-top">
+      <input
+        className="input"
+        placeholder="Search username to add"
+        value={groupSearch}
+        onChange={(e) => {
+          setGroupSearch(e.target.value);
+          searchUsersForGroup(e.target.value);
+        }}
+      />
+      <button className="primary-btn" onClick={addMembersToGroup}>
+        Add Selected
+      </button>
+    </div>
+
+    <div className="members-grid">
+      {groupSearchResults.map((u) => {
+        const active = membersToAdd.includes(u.id);
+        return (
+          <div
+            key={u.id}
+            className={`member-chip ${active ? "active" : ""}`}
+            onClick={() => {
+              setMembersToAdd((prev) =>
+                prev.includes(u.id)
+                  ? prev.filter((id) => id !== u.id)
+                  : [...prev, u.id],
+              );
+            }}
+          >
+            {u.username}
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
 
               <div className="messages-area">
                 {messages.map((msg) => {
@@ -646,8 +753,8 @@ function App() {
                   onKeyDown={(e) => e.key === "Enter" && sendMessage()}
                 />
                 <button className="primary-btn send-btn" onClick={sendMessage}>
-                  Send
-                </button>
+  <IoSend size={20} />
+</button>
               </div>
             </>
           ) : (

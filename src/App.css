@@ -1063,4 +1063,56 @@ textarea {
     max-width: unset;
     width: auto;
   }
+}.chat-header-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.add-member-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.group-add-panel {
+  padding: 14px 18px;
+  border-bottom: 1px solid #1e293b;
+  background: rgba(15, 23, 42, 0.92);
+}
+
+.group-add-top {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .chat-header-main {
+    width: 100%;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .group-add-panel {
+    padding: 12px;
+  }
+
+  .group-add-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .add-member-btn {
+    width: 100%;
+  }
+}
+
+.send-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  padding: 10px;
 }
