@@ -1116,3 +1116,43 @@ textarea {
   min-width: 48px;
   padding: 10px;
 }
+
+
+.selected-file-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #f4f4f4;
+  border-top: 1px solid #ddd;
+}
+
+.message-file-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chat-image {
+  max-width: 220px;
+  max-height: 220px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.file-link {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.file-link:hover {
+  text-decoration: underline;
+}
+
+.file-subtext {
+  font-size: 12px;
+  opacity: 0.75;
+}

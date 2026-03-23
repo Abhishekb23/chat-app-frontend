@@ -27,6 +27,9 @@ function App() {
   const [messages, setMessages] = useState([]);
 
   const [newMessage, setNewMessage] = useState("");
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+
   const [groupName, setGroupName] = useState("");
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
@@ -105,37 +108,37 @@ function App() {
   const searchUsersForGroup = async (q = "") => {
     try {
       const trimmed = q.trim();
-  
+
       if (!trimmed) {
         setGroupSearchResults([]);
         return;
       }
-  
+
       const data = await api(
         `/api/users/search?q=${encodeURIComponent(trimmed)}`,
         {
           headers: authHeaders,
         },
       );
-  
+
       setGroupSearchResults(data.users || []);
     } catch (err) {
       showToast(err.message, "error");
     }
   };
-  
+
   const addMembersToGroup = async () => {
     try {
       if (!selectedConversation || selectedConversation.type !== "GROUP") {
         showToast("Open a group first", "error");
         return;
       }
-  
+
       if (membersToAdd.length === 0) {
         showToast("Select at least one user", "error");
         return;
       }
-  
+
       await api(`/api/groups/${selectedConversation.id}/members`, {
         method: "POST",
         headers: authHeaders,
@@ -143,7 +146,7 @@ function App() {
           memberIds: membersToAdd,
         }),
       });
-  
+
       showToast("Members added successfully", "success");
       setShowAddMembers(false);
       setGroupSearch("");
@@ -293,16 +296,81 @@ function App() {
   };
 
   const sendMessage = () => {
-    if (!newMessage.trim() || !selectedConversation || !socketRef.current)
-      return;
-
+    if (!newMessage.trim() || !selectedConversation || !socketRef.current) return;
+  
     socketRef.current.emit("send_message", {
       conversationId: selectedConversation.id,
       senderId: user.id,
-      content: newMessage,
+      content: newMessage.trim(),
     });
-
+  
     setNewMessage("");
+  };
+  const handleFileUpload = async () => {
+    try {
+      if (!selectedFile) {
+        showToast("Please select a file", "error");
+        return;
+      }
+
+      if (!selectedConversation?.id) {
+        showToast("Please select a conversation", "error");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      formData.append("conversationId", selectedConversation.id);
+
+      setUploadingFile(true);
+
+      const res = await fetch(`${API_URL}/api/messages/upload`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.message || "File upload failed");
+      }
+
+      if (data.success && data.message) {
+        setMessages((prev) => {
+          const alreadyExists = prev.some(
+            (m) => Number(m.id) === Number(data.message.id),
+          );
+
+          if (alreadyExists) return prev;
+          return [...prev, data.message];
+        });
+
+        setConversations((prev) =>
+          prev.map((c) =>
+            Number(c.id) === Number(selectedConversation.id)
+              ? {
+                  ...c,
+                  last_message:
+                    data.message.original_name ||
+                    data.message.content ||
+                    "File sent",
+                  last_message_at: data.message.created_at,
+                }
+              : c,
+          ),
+        );
+
+        setSelectedFile(null);
+        showToast("File uploaded successfully", "success");
+      }
+    } catch (err) {
+      showToast(err.message, "error");
+    } finally {
+      setUploadingFile(false);
+    }
   };
 
   const deleteMessage = async (id) => {
@@ -377,7 +445,6 @@ function App() {
     fetchMessages(selectedConversation.id);
 
     socketRef.current.emit("join_conversation", selectedConversation.id);
-
     const handleMessage = (message) => {
       if (Number(message.conversation_id) === Number(selectedConversation.id)) {
         setMessages((prev) => {
@@ -390,6 +457,19 @@ function App() {
           return [...prev, message];
         });
       }
+
+      setConversations((prev) =>
+        prev.map((c) =>
+          Number(c.id) === Number(message.conversation_id)
+            ? {
+                ...c,
+                last_message:
+                  message.original_name || message.content || "New message",
+                last_message_at: message.created_at,
+              }
+            : c,
+        ),
+      );
     };
 
     socketRef.current.on("receive_message", handleMessage);
@@ -591,77 +671,77 @@ function App() {
           {selectedConversation ? (
             <>
               <div className="chat-header">
-  <div className="chat-header-row">
-    {isMobile && (
-      <button
-        className="back-btn"
-        onClick={() => setSelectedConversation(null)}
-      >
-        ←
-      </button>
-    )}
+                <div className="chat-header-row">
+                  {isMobile && (
+                    <button
+                      className="back-btn"
+                      onClick={() => setSelectedConversation(null)}
+                    >
+                      ←
+                    </button>
+                  )}
 
-    <div className="chat-header-main">
-      <div>
-        <h2>{selectedConversation.name}</h2>
-        <div className="chat-sub">
-          {selectedConversation.type === "GROUP"
-            ? "Group chat"
-            : "Direct chat"}
-        </div>
-      </div>
+                  <div className="chat-header-main">
+                    <div>
+                      <h2>{selectedConversation.name}</h2>
+                      <div className="chat-sub">
+                        {selectedConversation.type === "GROUP"
+                          ? "Group chat"
+                          : "Direct chat"}
+                      </div>
+                    </div>
 
-      {selectedConversation.type === "GROUP" && (
-        <button
-          className="ghost-btn add-member-btn"
-          onClick={() => setShowAddMembers((prev) => !prev)}
-        >
-          {showAddMembers ? "Close" : "Add Members"}
-        </button>
-      )}
-    </div>
-  </div>
-</div>
+                    {selectedConversation.type === "GROUP" && (
+                      <button
+                        className="ghost-btn add-member-btn"
+                        onClick={() => setShowAddMembers((prev) => !prev)}
+                      >
+                        {showAddMembers ? "Close" : "Add Members"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
 
-{selectedConversation?.type === "GROUP" && showAddMembers && (
-  <div className="group-add-panel">
-    <div className="group-add-top">
-      <input
-        className="input"
-        placeholder="Search username to add"
-        value={groupSearch}
-        onChange={(e) => {
-          setGroupSearch(e.target.value);
-          searchUsersForGroup(e.target.value);
-        }}
-      />
-      <button className="primary-btn" onClick={addMembersToGroup}>
-        Add Selected
-      </button>
-    </div>
+              {selectedConversation?.type === "GROUP" && showAddMembers && (
+                <div className="group-add-panel">
+                  <div className="group-add-top">
+                    <input
+                      className="input"
+                      placeholder="Search username to add"
+                      value={groupSearch}
+                      onChange={(e) => {
+                        setGroupSearch(e.target.value);
+                        searchUsersForGroup(e.target.value);
+                      }}
+                    />
+                    <button className="primary-btn" onClick={addMembersToGroup}>
+                      Add Selected
+                    </button>
+                  </div>
 
-    <div className="members-grid">
-      {groupSearchResults.map((u) => {
-        const active = membersToAdd.includes(u.id);
-        return (
-          <div
-            key={u.id}
-            className={`member-chip ${active ? "active" : ""}`}
-            onClick={() => {
-              setMembersToAdd((prev) =>
-                prev.includes(u.id)
-                  ? prev.filter((id) => id !== u.id)
-                  : [...prev, u.id],
-              );
-            }}
-          >
-            {u.username}
-          </div>
-        );
-      })}
-    </div>
-  </div>
-)}
+                  <div className="members-grid">
+                    {groupSearchResults.map((u) => {
+                      const active = membersToAdd.includes(u.id);
+                      return (
+                        <div
+                          key={u.id}
+                          className={`member-chip ${active ? "active" : ""}`}
+                          onClick={() => {
+                            setMembersToAdd((prev) =>
+                              prev.includes(u.id)
+                                ? prev.filter((id) => id !== u.id)
+                                : [...prev, u.id],
+                            );
+                          }}
+                        >
+                          {u.username}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="messages-area">
                 {messages.map((msg) => {
@@ -704,7 +784,46 @@ function App() {
                             </div>
                           </div>
                         ) : (
-                          <div className="message-text">{msg.content}</div>
+                          <>
+                            {msg.message_type === "IMAGE" ? (
+                              <div className="message-file-block">
+                                <img
+                                  src={`${API_URL}${msg.file_url}`}
+                                  alt={msg.original_name || "image"}
+                                  className="chat-image"
+                                />
+                                <a
+                                  href={`${API_URL}${msg.file_url}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="file-link"
+                                >
+                                  {msg.original_name || "Open image"}
+                                </a>
+                              </div>
+                            ) : msg.message_type === "FILE" ? (
+                              <div className="message-file-block">
+                                <a
+                                  href={`${API_URL}${msg.file_url}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="file-link"
+                                >
+                                  {msg.original_name ||
+                                    msg.content ||
+                                    "Open file"}
+                                </a>
+                                <div className="file-subtext">
+                                  {msg.mime_type || "File"}
+                                  {msg.file_size
+                                    ? ` • ${(msg.file_size / 1024).toFixed(1)} KB`
+                                    : ""}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="message-text">{msg.content}</div>
+                            )}
+                          </>
                         )}
 
                         <div className="message-meta">
@@ -744,7 +863,36 @@ function App() {
                 <div ref={bottomRef} />
               </div>
 
+              {selectedFile && (
+                <div className="selected-file-preview">
+                  <span>Selected: {selectedFile.name}</span>
+                  <button
+                    className="ghost-btn"
+                    onClick={() => setSelectedFile(null)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
               <div className="composer">
+                <input
+                  type="file"
+                  id="fileUpload"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setSelectedFile(file);
+                  }}
+                />
+
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => document.getElementById("fileUpload")?.click()}
+                >
+                  File
+                </button>
+
                 <input
                   className="composer-input"
                   placeholder="Type your message..."
@@ -752,9 +900,19 @@ function App() {
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && sendMessage()}
                 />
+
                 <button className="primary-btn send-btn" onClick={sendMessage}>
-  <IoSend size={20} />
-</button>
+                  <IoSend size={20} />
+                </button>
+
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={handleFileUpload}
+                  disabled={!selectedFile || uploadingFile}
+                >
+                  {uploadingFile ? "Uploading..." : "Send File"}
+                </button>
               </div>
             </>
           ) : (
